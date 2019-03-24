@@ -3,8 +3,11 @@ import javax.swing.*;
 import javax.sound.midi.*;
 import java.util.*;
 import java.awt.event.*;
+import java.io.*;
 
-public class beatbox 
+// this version saves the beat configuration in local file as in .ser extension, which is helpful for running the same beat in same computer again
+// we are saving the check box configuration in .ser file and then reading it if we press the restore button
+public class beatbox
 {
     JPanel mainPanel;
     ArrayList<JCheckBox> checkboxList;
@@ -17,6 +20,7 @@ public class beatbox
     "Cowbell", "Vibraslap", "Low-mid Tom", "High Agogo",
     "Open Hi Conga"};
     int[] instruments = {35,42,46,38,49,39,50,60,70,72,64,56,58,47,67,63};
+    
     public static void main (String[] args) 
     {
         new beatbox().buildGUI();
@@ -24,6 +28,13 @@ public class beatbox
 
     public void buildGUI()
     {
+        // changing the look and feel of the beat box 
+        try{
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        }catch(Exception e)
+        {
+            e.printStackTrace();
+        }
         theFrame = new JFrame("Cyber BeatBox");
         theFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         BorderLayout layout = new BorderLayout();
@@ -43,6 +54,18 @@ public class beatbox
         JButton downTempo = new JButton("Tempo Down");
         downTempo.addActionListener(new MyDownTempoListener());
         buttonBox.add(downTempo);
+        
+        //version 2 features to save the beat configuration
+        JButton save = new JButton("Save");
+        save.addActionListener(new MySendListener());
+        buttonBox.add(save);
+        
+        //feature to restore to the last saved configuration
+        JButton restore = new JButton("Restore");
+        restore.addActionListener(new MyReadInListener());
+        buttonBox.add(restore);
+
+        // version 1 code nothing new 
         Box nameBox = new Box(BoxLayout.Y_AXIS);
         for (int i = 0; i < 16; i++) 
         {
@@ -96,10 +119,10 @@ public class beatbox
         } else {
         trackList[j] = 0;
         }
-        } // close inner loop
+        } 
         makeTracks(trackList);
         track.add(makeEvent(176,1,127,0,16));
-        } // close outer
+        } 
         track.add(makeEvent(192,9,1,0,15));
         try {
         sequencer.setSequence(sequence);
@@ -114,7 +137,7 @@ public class beatbox
         {
             buildTrackAndStart();
         }
-    } // close inner class
+    } 
     
     public class MyStopListener implements ActionListener 
     {
@@ -122,7 +145,7 @@ public class beatbox
             {
                 sequencer.stop();
             }
-    } // close inner class
+    } 
     
     public class MyUpTempoListener implements ActionListener 
     {
@@ -131,7 +154,7 @@ public class beatbox
             float tempoFactor = sequencer.getTempoFactor();
             sequencer.setTempoFactor((float)(tempoFactor * 1.03));
         }
-    } // close inner class
+    } 
 
     public class MyDownTempoListener implements ActionListener 
     {
@@ -140,8 +163,57 @@ public class beatbox
                 float tempoFactor = sequencer.getTempoFactor();
                 sequencer.setTempoFactor((float)(tempoFactor * .97));
             }
-    } // close inner class
+    } 
     
+    
+    public class MySendListener implements ActionListener 
+    {
+        public void actionPerformed(ActionEvent a) 
+        {
+            boolean[] checkboxState = new boolean[256];
+            for (int i = 0; i < 256; i++) 
+            {
+                JCheckBox check = (JCheckBox) checkboxList.get(i);
+                if (check.isSelected()) 
+                checkboxState[i] = true;
+            }
+            try 
+            {
+                FileOutputStream fileStream = new FileOutputStream(new File("Checkbox.ser"));
+                ObjectOutputStream os = new ObjectOutputStream(fileStream);
+                os.writeObject(checkboxState);
+                os.close();
+            } 
+            catch(Exception ex) 
+            {
+                System.out.println("exception");
+                ex.printStackTrace();
+            }
+        } 
+        
+    } 
+
+    public class MyReadInListener implements ActionListener {
+        public void actionPerformed(ActionEvent a) {
+        boolean[] checkboxState = null;
+        try {
+        FileInputStream fileIn = new FileInputStream(new File("Checkbox.ser"));
+        ObjectInputStream is = new ObjectInputStream(fileIn);
+        checkboxState = (boolean[]) is.readObject();
+        } catch(Exception ex) {ex.printStackTrace();}
+        for (int i = 0; i < 256; i++) {
+        JCheckBox check = (JCheckBox) checkboxList.get(i);
+        if (checkboxState[i]) {
+        check.setSelected(true);
+        } else {
+        check.setSelected(false);
+        }
+        }
+        sequencer.stop();
+        buildTrackAndStart();
+        } 
+        } 
+
     public void makeTracks(int[] list) 
     {
         for (int i = 0; i < 16; i++) 
